@@ -1,6 +1,6 @@
 # Sakura Telemetry v2 服务器与分析包
 
-这是下一版本的可审阅源码，尚未部署生产。基础文件取自核对后的线上 BaoTa 服务，哈希见 `baseline.json`；旧 Phase 2 目录不再作为部署来源。
+本目录包含遥测服务器、后台与分析包导出源码。基础文件取自核对后的线上 BaoTa 服务，哈希见 `baseline.json`；旧 Phase 2 目录不再作为部署来源。
 客户端、服务端与后台必须按协议顺序上线。后端继续使用 FastAPI、Pydantic、SQLite；React 页面保留在 `dashboard/`，没有新增账号系统或消息队列。
 
 ## 本地隔离运行
@@ -16,7 +16,7 @@ python -m uvicorn app:app --host 127.0.0.1 --port 8765 --workers 1 --no-access-l
 `/health` 检查数据库。Admin API 和静态页要求 `Host: admin.cialloo.cn`；本地 Host 隔离不提供密码认证。生产 Basic Auth 必须继续由 Nginx 执行，8765 不得对公网开放。
 数据库初始化采用增量列和索引，不修改既有 received_at。v1/v2 均可入库；未知诊断字段不补零、不推测。
 
-后台构建：在 `dashboard/` 执行 `npm ci && npm run build`，将 dist 内容放入服务根的 `admin_static/`。原外部后台目录没有被覆盖。
+后台构建：在 `dashboard/` 执行 `npm ci && npm run build`，将 dist 内容放入服务根的 `admin_static/`，保留 `assets/` 子目录。HTML 位于 `admin_static/index.html`，脚本、样式和字体位于 `admin_static/assets/`；后端通过固定路由提供这些文件。原外部后台目录没有被覆盖。
 
 ## 下载与离线分析
 
@@ -64,15 +64,19 @@ python tools/telemetry_server/tests/verify_captured_wire.py /tmp/http-wire.json
 
 ## 生产部署与回退
 
-生产部署和客户端发布分别需要授权。本轮只准备源码、验证与部署包；没有重启或修改线上服务。
+生产部署和客户端发布分别需要授权，服务端上线不代表客户端已完成发布包验收。每次部署保存实际文件哈希、备份位置和公网检查结果。
 
-1. 用 SSH skill 的 `macmini` 别名重新核实平台、BaoTa 项目、Python 版本、文件哈希和 Nginx 路由。对线上目录运行 `check_baseline.py`；任一哈希变化都重新对比，不能直接覆盖。
+1. 用 SSH skill 的 `macmini` 别名重新核实平台、BaoTa 项目、Python 版本、文件哈希和 Nginx 路由。首次从 v1 升级时对线上目录运行 `check_baseline.py`；后续部署对比上一次的 `release-manifest.json` 和 Nginx 哈希。任一哈希变化都重新对比，不能直接覆盖。
 2. 在站点目录外、仅维护者可读的目录备份代码。用 SQLite backup API 备份一致性数据库；不要复制活跃 WAL 数据库单文件，不把含用户数据的备份提交仓库。
 3. 在隔离复制数据库中安装依赖并启动新后端，验证增量迁移、v1/v2、后台查询与 ZIP。核对实际 BaoTa Python 兼容性，再通过现有项目发布。
 4. Nginx 保留 Basic Auth、Origin Secret 和 Host 隔离。遥测域名只允许 `/health` 与 `/v[12]/errors|events|model-calls`，不得转发 `/admin`；Admin vhost 的鉴权覆盖全部 `/admin/api/v2/exports` 与下载路径。后台 ZIP 不能用 alias 暴露。
 5. 使用一个 Uvicorn worker；代码路径仍为 `/opt/sakura-telemetry`，DB 为 `/var/lib/sakura-telemetry/telemetry.db`，export 根为 `/var/lib/sakura-telemetry/exports`。后者归服务用户所有，目录 0700，文件 0600。保留原来的 90 天清理任务。
 6. 发布后验证真实公网：未认证后台返回 401；已认证 Admin 页面/API/下载成功；遥测域名访问 Admin 返回 404；v1/v2 合法请求入库、非法请求拒绝；下载包离线验真。使用 acceptance 环境，不能混入生产统计。检查 Nginx 及应用日志没有请求正文或凭据。
 7. 服务器验证通过后再安排 Windows/macOS 客户端隔离验收，最后发布下一版。
+
+旧宝塔后台配置的 `/admin/` 仅允许 GET。增加导出时，应为 `/admin/api/v2/exports` 添加精确 location，沿用现有 `auth_basic` 和密码文件，只允许 POST，并设置 `client_max_body_size 8k`。状态和下载仍由原受保护的 GET 路由处理；不要给整个后台开放写请求。源站则只代理 `/health` 与 `/v[12]/(errors|events|model-calls)`，其他路径返回 404，保留 Origin Secret 校验。
+
+如果宝塔自带 Python 的 HTTPS 检查提示缺少证书信任链，可指定服务器系统 CA 文件（例如 `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`）。不能通过关闭证书校验代替公网 TLS 验收。
 
 回退先暂停新版客户端发布，保留新增列和 v2 接收模块；可以回退页面或关闭有问题的查询入口。不得用旧数据库覆盖新上报，也不能把 v1-only 旧服务替回已有 v2 客户端使用的服务器。
 `baseline.json` 只用于部署前漂移检查，不是数据库回退点；生产备份由维护者在服务器私有目录管理。

@@ -107,7 +107,7 @@ def admin_index(request: Request) -> FileResponse:
 def admin_css(request: Request) -> FileResponse:
     _require_admin_host(request)
     return FileResponse(
-        STATIC_ROOT / "admin.css",
+        STATIC_ROOT / "assets" / "admin.css",
         media_type="text/css; charset=utf-8",
         headers={"Cache-Control": "no-store"},
     )
@@ -117,7 +117,7 @@ def admin_css(request: Request) -> FileResponse:
 def admin_js(request: Request) -> FileResponse:
     _require_admin_host(request)
     return FileResponse(
-        STATIC_ROOT / "admin.js",
+        STATIC_ROOT / "assets" / "admin.js",
         media_type="application/javascript; charset=utf-8",
         headers={"Cache-Control": "no-store"},
     )
@@ -127,7 +127,7 @@ def admin_js(request: Request) -> FileResponse:
 def admin_icon(request: Request) -> FileResponse:
     _require_admin_host(request)
     return FileResponse(
-        STATIC_ROOT / "sakura-icon.png",
+        STATIC_ROOT / "assets" / "sakura-icon.png",
         media_type="image/png",
         headers={"Cache-Control": "no-store"},
     )
@@ -137,7 +137,7 @@ def admin_icon(request: Request) -> FileResponse:
 def admin_font(request: Request) -> FileResponse:
     _require_admin_host(request)
     return FileResponse(
-        STATIC_ROOT / "sakura-ui.woff2",
+        STATIC_ROOT / "assets" / "sakura-ui.woff2",
         media_type="font/woff2",
         headers={"Cache-Control": "no-store"},
     )

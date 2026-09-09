@@ -12,7 +12,7 @@ import admin
 
 
 def test_assets_and_host_isolation(monkeypatch):
-    monkeypatch.setattr(admin, "STATIC_ROOT", ROOT / "dashboard/src/assets")
+    monkeypatch.setattr(admin, "STATIC_ROOT", ROOT / "dashboard/src")
     app = FastAPI()
     app.include_router(admin.router)
     with TestClient(app) as client:
@@ -21,7 +21,7 @@ def test_assets_and_host_isolation(monkeypatch):
             response = client.get(path, headers={"Host": "admin.cialloo.cn"})
             assert response.status_code == 200
             assert response.headers["content-type"] == mime
-            assert response.content == (admin.STATIC_ROOT / name).read_bytes()
+            assert response.content == (admin.STATIC_ROOT / "assets" / name).read_bytes()
             assert client.get(path, headers={"Host": "telemetry.cialloo.cn"}).status_code == 404
             assert client.post(path, headers={"Host": "admin.cialloo.cn"}).status_code == 405
         for path in ["telemetry.db", "unknown.png", "%2e%2e%2fadmin.py"]:
